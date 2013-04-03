@@ -1,0 +1,59 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'methadone'
+require 'snmplook.rb'
+
+
+class App
+  include Methadone::Main
+  include Methadone::CLILogging
+  include Snmplook
+
+  main do
+    puts 'Your Network:'
+    network = options[:ip_address]
+    community = options[:community]
+    snmpversion = options[:snmpversion]
+    puts options[:ip_address]
+    
+    puts 'List of computers in your LAN. Please wait ...'
+    scan_network = new.scan(network)
+    puts scan_network
+    
+    puts 'Checking if SNMP available. Please wait ...'
+    found = []
+    scan_network.map{ 
+      |i|
+      found << new.request(i, community, snmpversion)}
+    found.reject! { |f| f.nil? }
+
+    puts 'Getting Information. Please wait ...'
+    sleep(2)
+    loop do 
+      sleep(3)
+      system "clear"
+      
+      found.map{ 
+        |f| 
+        new.information(f, community, snmpversion)}
+    end
+  end
+
+
+  version Snmplook::VERSION
+
+  description 'Collect Data over SNMP in your local network!'
+
+
+  options['ip_address'] = new.network_id << '0'
+  options['community'] = 'snmplook'
+  options['snmpversion'] = :SNMPv2c
+  on("-i ip_address","--ip_address","Network Address",/^\d+\.\d+\.\d+\.0/)
+  on("-c community","--community","Community")
+  on("-v snmpversion","--snmpversion","SNMP Version")
+
+  use_log_level_option
+
+  go!
+end
